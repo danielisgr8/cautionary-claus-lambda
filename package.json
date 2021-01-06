@@ -1,0 +1,28 @@
+{
+  "name": "@danielisgr8/cautionary-claus-lambda",
+  "version": "0.1.0",
+  "description": "AWS Lambda function for Cautionary Claus",
+  "main": "dist/index.js",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "npm run build:types && npm run build:js",
+    "build:types": "tsc --emitDeclarationOnly",
+    "build:js": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danielisgr8/cautionary-claus-lambda.git"
+  },
+  "author": "Daniel Schubert",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/danielisgr8/cautionary-claus-lambda/issues"
+  },
+  "homepage": "https://github.com/danielisgr8/cautionary-claus-lambda#readme",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.70"
+  }
+}
