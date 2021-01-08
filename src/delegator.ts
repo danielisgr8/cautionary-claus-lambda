@@ -1,10 +1,15 @@
 import { APIGatewayProxyEvent } from "aws-lambda";
 
+export interface RequestEvent extends APIGatewayProxyEvent {
+  authenticatedUser: string,
+}
+
 export interface Activity {
-  (event: APIGatewayProxyEvent): any;
+  (event: RequestEvent): any;
 }
 
 export class NoActivityError extends Error {}
+export class AuthenticationError extends Error {}
 
 export class Delegator {
   private activityMap: { [path: string]: { [method: string]: Activity } };
@@ -23,6 +28,20 @@ export class Delegator {
       throw new NoActivityError(`No activity configured for ${method}:${path}`);
     }
 
-    return this.activityMap[path][method](event);
+    let authenticatedUser: string;
+    if(!("Authorization" in event.headers) || event.headers["Authorization"] === undefined) {
+      throw new AuthenticationError("No Authorization header provided");
+    } else {
+      try {
+        authenticatedUser = event.headers["Authorization"].split(" ")[1];
+      } catch(e) {
+        throw new AuthenticationError("Authorization header is malformed");
+      }
+    }
+
+    return this.activityMap[path][method]({
+      ...event,
+      authenticatedUser
+    });
   }
 }
