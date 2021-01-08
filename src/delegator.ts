@@ -27,7 +27,7 @@ export class Delegator {
     }
 
     let authenticatedUser: string;
-    if(!("Authorization" in event.headers) || event.headers["Authorization"] === undefined) {
+    if(event.headers["Authorization"] === undefined) {
       throw new AuthenticationError("No Authorization header provided");
     } else {
       try {
