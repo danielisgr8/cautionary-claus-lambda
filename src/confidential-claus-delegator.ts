@@ -2,7 +2,7 @@ import { Authorizer } from "./authorizer";
 import { Delegator, RequestEvent } from "./delegator";
 import { BadRequestError, UnauthorizedError } from "./errors";
 
-export class CautionaryClausDelegator extends Delegator {
+export class ConfidentialClausDelegator extends Delegator {
   constructor() {
     super();
 
@@ -44,7 +44,7 @@ export class CautionaryClausDelegator extends Delegator {
     this.addActivity("/profile/{username}", "GET", (event) => {
       const requestedUser = this.getRequestedUser(event);
       // const commonData = { ... }
-      if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser)) {
+      if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, [])) {
         // TODO: add assignedUser and return
       } else {
         // TODO: add notes and return
@@ -53,7 +53,7 @@ export class CautionaryClausDelegator extends Delegator {
     
     this.addActivity("/profile/{username}", "PUT", (event) => {
       const requestedUser = this.getRequestedUser(event);
-      if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser)) {
+      if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, [])) {
         // TODO: find existent properties and update them in dynamo
       } else {
         throw new UnauthorizedError("Authenticated user and user whose profile is being updated must match");
@@ -62,7 +62,7 @@ export class CautionaryClausDelegator extends Delegator {
 
     this.addActivity("/profile/{username}/note", "PUT", (event) => {
       const requestedUser = this.getRequestedUser(event);
-      if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser)) {
+      if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser, [])) {
         // TODO: add note in dynamo
       } else {
         throw new UnauthorizedError("Authenticated user and user to add note to must not match");
@@ -71,7 +71,7 @@ export class CautionaryClausDelegator extends Delegator {
 
     this.addActivity("/profile/{username}/note", "DELETE", (event) => {
       const requestedUser = this.getRequestedUser(event);
-      if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser)) {
+      if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser, [])) {
         // TODO: delete note in dynamo
       } else {
         throw new UnauthorizedError("Authenticated user and user to delete note from must not match");
@@ -79,7 +79,7 @@ export class CautionaryClausDelegator extends Delegator {
     });
 
     this.addActivity("/admin/assign-all", "PUT", (event) => {
-      if(Authorizer.authorizeAdmin(event.authenticatedUser)) {
+      if(Authorizer.authorizeAdmin(event.authenticatedUser, [])) {
         // TODO: assign all
       } else {
         throw new UnauthorizedError("Authenticated user must be an admin");
@@ -87,7 +87,7 @@ export class CautionaryClausDelegator extends Delegator {
     });
 
     this.addActivity("/admin/assign/{username}", "PUT", (event) => {
-      if(Authorizer.authorizeAdmin(event.authenticatedUser)) {
+      if(Authorizer.authorizeAdmin(event.authenticatedUser, [])) {
         // TODO: assign
       } else {
         throw new UnauthorizedError("Authenticated user must be an admin");
@@ -95,7 +95,7 @@ export class CautionaryClausDelegator extends Delegator {
     });
   }
 
-  private emptyString(str: any | undefined) {
+  private emptyString(str: any | undefined): boolean {
     return (
       str === undefined
       || typeof str !== "string"
@@ -103,7 +103,7 @@ export class CautionaryClausDelegator extends Delegator {
     );
   }
 
-  private getRequestedUser(event: RequestEvent) {
+  private getRequestedUser(event: RequestEvent): string {
     if(event.pathParameters === null || event.pathParameters["username"] === undefined) {
       throw new BadRequestError("No username path parameter provided");
     }

@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { CautionaryClausDelegator } from "./cautionary-claus-delegator";
+import { ConfidentialClausDelegator } from "./confidential-claus-delegator";
 
-const delegator = new CautionaryClausDelegator();
+const delegator = new ConfidentialClausDelegator();
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   delegator.delegate(event.path, event.httpMethod, event);
