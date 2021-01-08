@@ -1,4 +1,5 @@
 import { APIGatewayProxyEvent } from "aws-lambda";
+import { AuthenticationError, NoActivityError } from "./errors";
 
 export interface RequestEvent extends APIGatewayProxyEvent {
   authenticatedUser: string,
@@ -7,9 +8,6 @@ export interface RequestEvent extends APIGatewayProxyEvent {
 export interface Activity {
   (event: RequestEvent): any;
 }
-
-export class NoActivityError extends Error {}
-export class AuthenticationError extends Error {}
 
 export class Delegator {
   private activityMap: { [path: string]: { [method: string]: Activity } };
