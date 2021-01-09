@@ -1,7 +1,7 @@
-import { APIGatewayProxyEvent } from "aws-lambda";
+import { APIGatewayProxyEventV2 } from "aws-lambda";
 import { AuthenticationError, NoActivityError } from "./errors";
 
-export interface RequestEvent extends APIGatewayProxyEvent {
+export interface RequestEvent extends APIGatewayProxyEventV2 {
   authenticatedUser: string,
 }
 
@@ -21,7 +21,7 @@ export class Delegator {
     this.activityMap[path][method] = activity;
   }
 
-  public delegate(path: string, method: string, event: APIGatewayProxyEvent) {
+  public delegate(path: string, method: string, event: APIGatewayProxyEventV2) {
     if(!(path in this.activityMap) || !(method in this.activityMap[path])) {
       throw new NoActivityError(`No activity configured for ${method}:${path}`);
     }

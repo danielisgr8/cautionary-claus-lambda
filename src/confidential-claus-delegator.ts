@@ -13,7 +13,7 @@ export class ConfidentialClausDelegator extends Delegator {
     this.ddbClient = new DynamoDBClientFacade(ddb);
 
     this.addActivity("/user", "POST", async (event) => {
-      if(event.body === null) throw new BadRequestError("Request body cannot be empty");
+      if(event.body === undefined) throw new BadRequestError("Request body cannot be empty");
       let body: any;
       try {
         body = JSON.parse(event.body);
@@ -70,7 +70,7 @@ export class ConfidentialClausDelegator extends Delegator {
     });
     
     this.addActivity("/profile/{username}", "PUT", async (event) => {
-      if(event.body === null) throw new BadRequestError("Request must have a body");
+      if(event.body === undefined) throw new BadRequestError("Request must have a body");
       let update: any;
       try {
         update = JSON.parse(event.body);
@@ -134,7 +134,7 @@ export class ConfidentialClausDelegator extends Delegator {
   }
 
   private getRequestedUser(event: RequestEvent): string {
-    if(event.pathParameters === null || event.pathParameters["username"] === undefined) {
+    if(event.pathParameters === undefined || event.pathParameters["username"] === undefined) {
       throw new BadRequestError("No username path parameter provided");
     }
 
