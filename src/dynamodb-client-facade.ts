@@ -57,7 +57,7 @@ export class DynamoDBClientFacade {
     const results = await this.ddb.send(command);
     if(results.Items === undefined || results.Count != 1) throw new ItemNotFoundError("Requested user does not exist");
 
-    return unmarshall(results.Items[0]) as User;
+    return unmarshall(results.Items[0]) as unknown as User;
   }
 
   public async getAllUsers(): Promise<User[]> {
@@ -70,7 +70,7 @@ export class DynamoDBClientFacade {
       const command = new ScanCommand(input);
       
       const results = await this.ddb.send(command);
-      results.Items?.forEach((item) => users.push(unmarshall(item) as User));
+      results.Items?.forEach((item) => users.push(unmarshall(item) as unknown as User));
       exclusiveStartKey = results?.LastEvaluatedKey;
     } while (exclusiveStartKey !== undefined);
 
