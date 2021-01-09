@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { Authorizer } from "./authorizer";
 import { Delegator, RequestEvent } from "./delegator";
-import { DynamoDBClientFacade, UserUpdate } from "./dynamodb-client-facade";
+import { DynamoDBClientFacade, NewUser, UserUpdate } from "./dynamodb-client-facade";
 import { BadRequestError, UnauthorizedError } from "./errors";
 
 export class ConfidentialClausDelegator extends Delegator {
@@ -40,7 +40,11 @@ export class ConfidentialClausDelegator extends Delegator {
         });
       }
 
-      // TODO: body is valid, remove potential unnecessary properties and put in dynamo
+      if(invalidMessages.length === 0) {
+        await this.ddbClient.createUser(body as NewUser);
+      } else {
+        throw new BadRequestError(`Request had the folloring errors: ${invalidMessages}`);
+      }
     });
 
     this.addActivity("/users", "GET", async () => {
@@ -67,10 +71,16 @@ export class ConfidentialClausDelegator extends Delegator {
     
     this.addActivity("/profile/{username}", "PUT", async (event) => {
       if(event.body === null) throw new BadRequestError("Request must have a body");
+      let update: any;
+      try {
+        update = JSON.parse(event.body);
+      } catch(e) {
+        throw new BadRequestError("Request body is not valid JSON");
+      }
 
       const requestedUser = this.getRequestedUser(event);
       if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, await this.userList())) {
-        await this.ddbClient.updateUser(requestedUser, JSON.parse(event.body) as UserUpdate);
+        await this.ddbClient.updateUser(requestedUser, update as UserUpdate);
       } else {
         throw new UnauthorizedError("Authenticated user and user whose profile is being updated must match");
       }
