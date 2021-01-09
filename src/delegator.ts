@@ -6,7 +6,7 @@ export interface RequestEvent extends APIGatewayProxyEvent {
 }
 
 export interface Activity {
-  (event: RequestEvent): any;
+  (event: RequestEvent): Promise<any>;
 }
 
 export class Delegator {
