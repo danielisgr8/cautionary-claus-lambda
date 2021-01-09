@@ -83,6 +83,7 @@ export class DynamoDBClientFacade {
 
   public async updateUser(username: string, update: UserUpdate) {
     const strippedUpdate: { [key: string]: any } = removeEmpty(update);
+    if(Object.keys(strippedUpdate).length === 0) return;
 
     let updateExpression='set';
     let expressionAttributeValues: { [key: string]: any } = {};

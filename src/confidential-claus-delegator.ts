@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { Authorizer } from "./authorizer";
 import { Delegator, RequestEvent } from "./delegator";
-import { DynamoDBClientFacade } from "./dynamodb-client-facade";
+import { DynamoDBClientFacade, UserUpdate } from "./dynamodb-client-facade";
 import { BadRequestError, UnauthorizedError } from "./errors";
 
 export class ConfidentialClausDelegator extends Delegator {
@@ -49,19 +49,28 @@ export class ConfidentialClausDelegator extends Delegator {
 
     this.addActivity("/profile/{username}", "GET", async (event) => {
       const requestedUser = this.getRequestedUser(event);
-      // const commonData = { ... }
-      if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, [])) {
-        // TODO: add assignedUser and return
+      const {
+        assignedUser,
+        notes,
+        ...filteredResult
+      } = await this.ddbClient.getUser(requestedUser);
+      const result = filteredResult as any;
+
       if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, await this.userList())) {
+        result["assignedUser"] = assignedUser;
       } else {
-        // TODO: add notes and return
+        result["notes"] = notes;
       }
+
+      return filteredResult;
     });
     
     this.addActivity("/profile/{username}", "PUT", async (event) => {
+      if(event.body === null) throw new BadRequestError("Request must have a body");
+
       const requestedUser = this.getRequestedUser(event);
       if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, await this.userList())) {
-        // TODO: find existent properties and update them in dynamo
+        await this.ddbClient.updateUser(requestedUser, JSON.parse(event.body) as UserUpdate);
       } else {
         throw new UnauthorizedError("Authenticated user and user whose profile is being updated must match");
       }
