@@ -1,12 +1,18 @@
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { Authorizer } from "./authorizer";
 import { Delegator, RequestEvent } from "./delegator";
+import { DynamoDBClientFacade } from "./dynamodb-client-facade";
 import { BadRequestError, UnauthorizedError } from "./errors";
 
 export class ConfidentialClausDelegator extends Delegator {
-  constructor() {
+  private ddbClient: DynamoDBClientFacade;
+
+  constructor(ddb: DynamoDBClient) {
     super();
 
-    this.addActivity("/user", "POST", (event) => {
+    this.ddbClient = new DynamoDBClientFacade(ddb);
+
+    this.addActivity("/user", "POST", async (event) => {
       if(event.body === null) throw new BadRequestError("Request body cannot be empty");
       let body: any;
       try {
@@ -37,62 +43,67 @@ export class ConfidentialClausDelegator extends Delegator {
       // TODO: body is valid, remove potential unnecessary properties and put in dynamo
     });
 
-    this.addActivity("/users", "GET", (event) => {
-      // TODO: get list of users from dynamo and return only the usernames
+    this.addActivity("/users", "GET", async () => {
+      return await this.userList();
     });
 
-    this.addActivity("/profile/{username}", "GET", (event) => {
+    this.addActivity("/profile/{username}", "GET", async (event) => {
       const requestedUser = this.getRequestedUser(event);
       // const commonData = { ... }
       if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, [])) {
         // TODO: add assignedUser and return
+      if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, await this.userList())) {
       } else {
         // TODO: add notes and return
       }
     });
     
-    this.addActivity("/profile/{username}", "PUT", (event) => {
+    this.addActivity("/profile/{username}", "PUT", async (event) => {
       const requestedUser = this.getRequestedUser(event);
-      if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, [])) {
+      if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, await this.userList())) {
         // TODO: find existent properties and update them in dynamo
       } else {
         throw new UnauthorizedError("Authenticated user and user whose profile is being updated must match");
       }
     });
 
-    this.addActivity("/profile/{username}/note", "PUT", (event) => {
+    this.addActivity("/profile/{username}/note", "PUT", async (event) => {
       const requestedUser = this.getRequestedUser(event);
-      if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser, [])) {
+      if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser, await this.userList())) {
         // TODO: add note in dynamo
       } else {
         throw new UnauthorizedError("Authenticated user and user to add note to must not match");
       }
     });
 
-    this.addActivity("/profile/{username}/note", "DELETE", (event) => {
+    this.addActivity("/profile/{username}/note", "DELETE", async (event) => {
       const requestedUser = this.getRequestedUser(event);
-      if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser, [])) {
+      if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser, await this.userList())) {
         // TODO: delete note in dynamo
       } else {
         throw new UnauthorizedError("Authenticated user and user to delete note from must not match");
       }
     });
 
-    this.addActivity("/admin/assign-all", "PUT", (event) => {
-      if(Authorizer.authorizeAdmin(event.authenticatedUser, [])) {
+    this.addActivity("/admin/assign-all", "PUT", async (event) => {
+      if(Authorizer.authorizeAdmin(event.authenticatedUser, await this.userList())) {
         // TODO: assign all
       } else {
         throw new UnauthorizedError("Authenticated user must be an admin");
       }
     });
 
-    this.addActivity("/admin/assign/{username}", "PUT", (event) => {
-      if(Authorizer.authorizeAdmin(event.authenticatedUser, [])) {
+    this.addActivity("/admin/assign/{username}", "PUT", async (event) => {
+      if(Authorizer.authorizeAdmin(event.authenticatedUser, await this.userList())) {
         // TODO: assign
       } else {
         throw new UnauthorizedError("Authenticated user must be an admin");
       }
     });
+  }
+
+  private async userList(): Promise<string[]> {
+    return (await this.ddbClient.getAllUsers()).map((user) => user.username);
   }
 
   private emptyString(str: any | undefined): boolean {
