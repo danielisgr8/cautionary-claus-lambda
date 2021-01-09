@@ -1,4 +1,4 @@
-import { AttributeValue, DynamoDBClient, QueryCommand, ScanCommand, ScanInput, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { AttributeValue, DynamoDBClient, QueryCommand, ScanCommand, ScanInput, Update, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { ItemNotFoundError } from "./errors";
 import { removeEmpty } from "./util";
@@ -78,7 +78,8 @@ export class DynamoDBClientFacade {
   }
 
   public async createUser(user: NewUser) {
-
+    const { username, ...rest } = user;
+    await this.updateUser(username, rest);
   }
 
   public async updateUser(username: string, update: UserUpdate) {
@@ -104,7 +105,22 @@ export class DynamoDBClientFacade {
   }
 
   public async addNote(username: string, note: Note) {
-
+    const input = {
+      TableName: this.tableName,
+      Key: marshall({ username }),
+      UpdateExpression: "set notes = list_append(notes, :v)",
+      ExpressionAttributeValues: marshall({
+        ":v": [note as any]
+      })
+    };
+    let command = new UpdateItemCommand(input);
+    try {
+      await this.ddb.send(command);
+    } catch (error) {
+      input.UpdateExpression = "set notes = :v";
+      command = new UpdateItemCommand(input);
+      await this.ddb.send(command);
+    }
   }
 
   public async deleteNote(username: string, noteId: string) {

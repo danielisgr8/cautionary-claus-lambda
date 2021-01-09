@@ -3,6 +3,7 @@ import { Authorizer } from "./authorizer";
 import { Delegator, RequestEvent } from "./delegator";
 import { DynamoDBClientFacade, NewUser, UserUpdate } from "./dynamodb-client-facade";
 import { BadRequestError, UnauthorizedError } from "./errors";
+import { alphanumeric } from "./util";
 
 export class ConfidentialClausDelegator extends Delegator {
   private ddbClient: DynamoDBClientFacade;
@@ -87,9 +88,18 @@ export class ConfidentialClausDelegator extends Delegator {
     });
 
     this.addActivity("/profile/{username}/note", "PUT", async (event) => {
+      if (event.body === undefined) throw new BadRequestError("Request must have a body");
+      let body: any;
+      try {
+        body = JSON.parse(event.body);
+      } catch(e) {
+        throw new BadRequestError("Request body is not valid JSON");
+      }
+      if (this.emptyString(body.message)) throw new BadRequestError("message must not be empty");
+
       const requestedUser = this.getRequestedUser(event);
       if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser, await this.userList())) {
-        // TODO: add note in dynamo
+        await this.ddbClient.addNote(requestedUser, { id: alphanumeric(8), message: body.message });
       } else {
         throw new UnauthorizedError("Authenticated user and user to add note to must not match");
       }
