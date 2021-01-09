@@ -27,11 +27,11 @@ export class Delegator {
     }
 
     let authenticatedUser: string;
-    if(event.headers["Authorization"] === undefined) {
+    if(event.headers["authorization"] === undefined) {
       throw new AuthenticationError("No Authorization header provided");
     } else {
       try {
-        authenticatedUser = event.headers["Authorization"].split(" ")[1];
+        authenticatedUser = event.headers["authorization"].split(" ")[1];
       } catch(e) {
         throw new AuthenticationError("Authorization header is malformed");
       }

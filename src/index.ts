@@ -7,6 +7,8 @@ const ddb = new DynamoDBClient({ region: "us-west-2" });
 const delegator = new ConfidentialClausDelegator(ddb);
 
 export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+  console.log("EVENT:\n" + JSON.stringify(event));
+
   const result = await delegator.delegate(event.requestContext.http.path, event.requestContext.http.method, event);
 
   return {
