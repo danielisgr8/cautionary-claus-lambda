@@ -22,7 +22,7 @@ export class DynamoDBClientFacade {
       KeyConditionExpression: "username = :v",
     });
     const results = await this.ddb.send(command);
-    if(results.Items === undefined || results.Count != 1) throw new ItemNotFoundError("Requested user does not exist");
+    if(results.Items === undefined || results.Count != 1) throw new ItemNotFoundError("Requested user does not exist: " + username);
 
     return unmarshall(results.Items[0]) as unknown as User;
   }
@@ -121,6 +121,15 @@ export class DynamoDBClientFacade {
   }
 
   public async assignUser(giverUsername: string, receiverUsername: string) {
-
+    await this.getUser(receiverUsername);
+    const command = new UpdateItemCommand({
+      TableName: this.tableName,
+      Key: marshall({ username: giverUsername }),
+      UpdateExpression: `set assigned = :v`,
+      ExpressionAttributeValues: marshall({
+        ":v": receiverUsername
+      })
+    });
+    await this.ddb.send(command);
   }
 }

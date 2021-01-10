@@ -3,8 +3,8 @@ import { Authorizer } from "./authorizer";
 import { Delegator, RequestEvent } from "./delegator";
 import { DynamoDBClientFacade } from "./dynamodb-client-facade";
 import { BadRequestError, UnauthorizedError } from "./errors";
-import { buildNewUser, buildUserUpdate, NewUser, UserUpdate } from "./models";
-import { alphanumeric } from "./util";
+import { buildNewUser, buildUserUpdate, NewUser, User, UserUpdate } from "./models";
+import { alphanumeric, shuffle } from "./util";
 
 export class ConfidentialClausDelegator extends Delegator {
   private ddbClient: DynamoDBClientFacade;
@@ -132,15 +132,32 @@ export class ConfidentialClausDelegator extends Delegator {
 
     this.addActivity("/admin/assign-all", "PUT", async (event) => {
       if(Authorizer.authorizeAdmin(event.authenticatedUser, await this.userList())) {
-        // TODO: assign all
+        const users = await this.ddbClient.getAllUsers();
+        const assigned = Array.from(users);
+        do {
+          shuffle(assigned);
+        } while (this.badShuffle(users, assigned));
+        
+        await Promise.all(users.map(async (user, i) => {
+          await this.ddbClient.assignUser(user.username, assigned[i].username);
+        }));
       } else {
         throw new UnauthorizedError("Authenticated user must be an admin");
       }
     });
 
     this.addActivity("/admin/assign/{username}", "PUT", async (event) => {
+      if (event.body === undefined) throw new BadRequestError("Request must have a body");
+      let body: any;
+      try {
+        body = JSON.parse(event.body);
+      } catch(e) {
+        throw new BadRequestError("Request body is not valid JSON");
+      }
+      if (this.emptyString(body.assignedUser)) throw new BadRequestError("message must not be empty");
+
       if(Authorizer.authorizeAdmin(event.authenticatedUser, await this.userList())) {
-        // TODO: assign
+        await this.ddbClient.assignUser(event.authenticatedUser, body.assignedUser);
       } else {
         throw new UnauthorizedError("Authenticated user must be an admin");
       }
@@ -165,5 +182,9 @@ export class ConfidentialClausDelegator extends Delegator {
     }
 
     return event.pathParameters["username"];
+  }
+
+  private badShuffle(list1: User[], list2: User[]) {
+    return list1.some((user, i) => user.username === list2[i].username);
   }
 }
