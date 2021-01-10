@@ -10,10 +10,18 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   console.log("EVENT:\n" + JSON.stringify(event));
 
   const [method, path] = event.routeKey.split(" ");
-  const result = await delegator.delegate(path, method, event);
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify(result)
+  try {
+    const result = await delegator.delegate(path, method, event);
+    return {
+      statusCode: 200,
+      body: JSON.stringify(result)
+    }
+  } catch (error) {
+    // TODO: conditional on error type
+    return {
+      statusCode: 400,
+      body: error instanceof Error ? error.toString() : JSON.stringify(error)
+    }
   }
 }
