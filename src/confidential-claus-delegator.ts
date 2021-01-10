@@ -3,6 +3,7 @@ import { Authorizer } from "./authorizer";
 import { Delegator, RequestEvent } from "./delegator";
 import { DynamoDBClientFacade, NewUser, UserUpdate } from "./dynamodb-client-facade";
 import { BadRequestError, UnauthorizedError } from "./errors";
+import { buildNewUser, buildUserUpdate, NewUser, UserUpdate } from "./models";
 import { alphanumeric } from "./util";
 
 export class ConfidentialClausDelegator extends Delegator {
@@ -34,7 +35,7 @@ export class ConfidentialClausDelegator extends Delegator {
       if(typeof body["address"] !== "object") {
         invalidMessages.push("address is not an object");
       } else {
-        ["line1", "city", "state", "zip"].forEach((prop) => {
+        ["line1", "city", "usState", "zip"].forEach((prop) => {
           if(!(prop in body["address"]) || this.emptyString(body["address"][prop])) {
             invalidMessages.push(`${prop} is empty`);
           }
@@ -42,7 +43,13 @@ export class ConfidentialClausDelegator extends Delegator {
       }
 
       if(invalidMessages.length === 0) {
-        await this.ddbClient.createUser(body as NewUser);
+        let newUser: NewUser;
+        try {
+          newUser = buildNewUser(body);
+        } catch (error) {
+          throw new BadRequestError("Request body is missing properties: " + error);
+        }
+        await this.ddbClient.createUser(newUser);
       } else {
         throw new BadRequestError(`Request had the folloring errors: ${invalidMessages}`);
       }

@@ -2,41 +2,7 @@ import { AttributeValue, DynamoDBClient, QueryCommand, ScanCommand, ScanInput, U
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { ItemNotFoundError } from "./errors";
 import { removeEmpty } from "./util";
-
-export interface Note {
-  id: string,
-  message: string
-}
-
-export interface NewUser {
-  username: string,
-  firstName: string,
-  lastName: string,
-  address: {
-    line1: string,
-    line2: string,
-    city: string,
-    state: string,
-    zip: string
-  },
-}
-
-export interface User extends NewUser {
-  notes: Note[],
-  assignedUser: string
-}
-
-export interface UserUpdate {
-  firstName?: string,
-  lastName?: string,
-  address?: {
-    line1?: string,
-    line2?: string,
-    city?: string,
-    state?: string,
-    zip?: string
-  }
-}
+import { NewUser, Note, User, UserUpdate } from "./models";
 
 export class DynamoDBClientFacade {
   private readonly tableName = "ConfidentialClausUserTable";
