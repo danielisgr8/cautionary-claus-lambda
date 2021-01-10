@@ -1,7 +1,8 @@
 import { AttributeValue, DynamoDBClient, QueryCommand, ScanCommand, ScanInput, Update, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
-import { ItemNotFoundError } from "./errors";
+import { BadRequestError, ItemNotFoundError } from "./errors";
 import { removeEmpty } from "./util";
+import { getExpressionAndValues } from "./ddb-util";
 import { NewUser, Note, User, UserUpdate } from "./models";
 
 export class DynamoDBClientFacade {
@@ -45,21 +46,32 @@ export class DynamoDBClientFacade {
 
   public async createUser(user: NewUser) {
     const { username, ...rest } = user;
-    await this.updateUser(username, rest);
+    try {
+      await this.getUser(username);
+    } catch (error) {
+      const createAddressMapCommand = new UpdateItemCommand({
+        TableName: this.tableName,
+        Key: marshall({ username }),
+        UpdateExpression: "set address = :v",
+        ExpressionAttributeValues: marshall({
+          ":v": {}
+        })
+      });
+      await this.ddb.send(createAddressMapCommand);
+      await this.updateUser(username, rest);
+      return;
+    }
+    throw new BadRequestError(`User ${username} already exists`);
   }
 
   public async updateUser(username: string, update: UserUpdate) {
     const strippedUpdate: { [key: string]: any } = removeEmpty(update);
+    console.log("Stripped update object:\n" + JSON.stringify(strippedUpdate));
     if(Object.keys(strippedUpdate).length === 0) return;
 
-    let updateExpression='set';
-    let expressionAttributeValues: { [key: string]: any } = {};
-    for (const property in strippedUpdate) {
-      updateExpression += ` ${property} = :${property} ,`;
-      expressionAttributeValues[`:${property}`] = strippedUpdate[property as keyof UserUpdate];
-    }
-    updateExpression = updateExpression.slice(0, -1);
-    expressionAttributeValues = marshall(expressionAttributeValues);
+    const { expression: updateExpression, values: expressionAttributeValues } = getExpressionAndValues(strippedUpdate);
+    console.log("Update expression:\n" + updateExpression);
+    console.log("Attribute values:\n" + JSON.stringify(expressionAttributeValues));
 
     const command = new UpdateItemCommand({
       TableName: this.tableName,
@@ -90,7 +102,22 @@ export class DynamoDBClientFacade {
   }
 
   public async deleteNote(username: string, noteId: string) {
-
+    const user = await this.getUser(username);
+    const deleteIndex = user.notes.findIndex((note) => note.id === noteId);
+    if(deleteIndex >= 0) {
+      const command = new UpdateItemCommand({
+        TableName: this.tableName,
+        Key: marshall({ username }),
+        UpdateExpression: `remove notes[${deleteIndex}]`,
+        ConditionExpression: `notes[${deleteIndex}].id = :v`,
+        ExpressionAttributeValues: marshall({
+          ":v": noteId
+        })
+      });
+      await this.ddb.send(command);
+    } else {
+      throw new ItemNotFoundError(`Note with ID ${noteId} does not exist`);
+    }
   }
 
   public async assignUser(giverUsername: string, receiverUsername: string) {

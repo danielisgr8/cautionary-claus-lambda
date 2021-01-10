@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { Authorizer } from "./authorizer";
 import { Delegator, RequestEvent } from "./delegator";
-import { DynamoDBClientFacade, NewUser, UserUpdate } from "./dynamodb-client-facade";
+import { DynamoDBClientFacade } from "./dynamodb-client-facade";
 import { BadRequestError, UnauthorizedError } from "./errors";
 import { buildNewUser, buildUserUpdate, NewUser, UserUpdate } from "./models";
 import { alphanumeric } from "./util";
@@ -79,16 +79,22 @@ export class ConfidentialClausDelegator extends Delegator {
     
     this.addActivity("/profile/{username}", "PUT", async (event) => {
       if(event.body === undefined) throw new BadRequestError("Request must have a body");
-      let update: any;
+      let body: any;
       try {
-        update = JSON.parse(event.body);
+        body = JSON.parse(event.body);
       } catch(e) {
         throw new BadRequestError("Request body is not valid JSON");
       }
 
       const requestedUser = this.getRequestedUser(event);
       if(Authorizer.authorizeUser(event.authenticatedUser, requestedUser, await this.userList())) {
-        await this.ddbClient.updateUser(requestedUser, update as UserUpdate);
+        let userUpdate: UserUpdate;
+        try {
+          userUpdate = buildUserUpdate(body);
+        } catch (error) {
+          throw new BadRequestError("Request body is missing properties: " + error);
+        }
+        await this.ddbClient.updateUser(requestedUser, userUpdate);
       } else {
         throw new UnauthorizedError("Authenticated user and user whose profile is being updated must match");
       }
@@ -113,9 +119,12 @@ export class ConfidentialClausDelegator extends Delegator {
     });
 
     this.addActivity("/profile/{username}/note", "DELETE", async (event) => {
+      if(event.queryStringParameters === undefined || event.queryStringParameters.id === undefined) {
+        throw new BadRequestError("No note ID provided");
+      }
       const requestedUser = this.getRequestedUser(event);
       if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser, await this.userList())) {
-        // TODO: delete note in dynamo
+        await this.ddbClient.deleteNote(requestedUser, event.queryStringParameters.id);
       } else {
         throw new UnauthorizedError("Authenticated user and user to delete note from must not match");
       }
