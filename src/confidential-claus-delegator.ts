@@ -112,7 +112,9 @@ export class ConfidentialClausDelegator extends Delegator {
 
       const requestedUser = this.getRequestedUser(event);
       if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser, await this.userList())) {
-        await this.ddbClient.addNote(requestedUser, { id: alphanumeric(8), message: body.message });
+        const noteId = alphanumeric(8);
+        await this.ddbClient.addNote(requestedUser, { id: noteId, message: body.message });
+        return { id: noteId };
       } else {
         throw new UnauthorizedError("Authenticated user and user to add note to must not match");
       }
@@ -155,9 +157,10 @@ export class ConfidentialClausDelegator extends Delegator {
         throw new BadRequestError("Request body is not valid JSON");
       }
       if (emptyString(body.assignedUser)) throw new BadRequestError("message must not be empty");
+      const giverUsername = this.getRequestedUser(event);
 
       if(Authorizer.authorizeAdmin(event.authenticatedUser, await this.userList())) {
-        await this.ddbClient.assignUser(event.authenticatedUser, body.assignedUser);
+        await this.ddbClient.assignUser(giverUsername, body.assignedUser);
       } else {
         throw new UnauthorizedError("Authenticated user must be an admin");
       }

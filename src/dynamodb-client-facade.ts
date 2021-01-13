@@ -52,9 +52,10 @@ export class DynamoDBClientFacade {
       const createAddressMapCommand = new UpdateItemCommand({
         TableName: this.tableName,
         Key: marshall({ username }),
-        UpdateExpression: "set address = :v",
+        UpdateExpression: "set address = :v1, notes = :v2",
         ExpressionAttributeValues: marshall({
-          ":v": {}
+          ":v1": {},
+          ":v2": []
         })
       });
       await this.ddb.send(createAddressMapCommand);
@@ -125,7 +126,7 @@ export class DynamoDBClientFacade {
     const command = new UpdateItemCommand({
       TableName: this.tableName,
       Key: marshall({ username: giverUsername }),
-      UpdateExpression: `set assigned = :v`,
+      UpdateExpression: `set assignedUser = :v`,
       ExpressionAttributeValues: marshall({
         ":v": receiverUsername
       })
