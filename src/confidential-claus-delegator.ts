@@ -4,7 +4,7 @@ import { Delegator, RequestEvent } from "./delegator";
 import { DynamoDBClientFacade } from "./dynamodb-client-facade";
 import { BadRequestError, UnauthorizedError } from "./errors";
 import { buildNewUser, buildUserUpdate, NewUser, User, UserUpdate } from "./models";
-import { alphanumeric, shuffle } from "./util";
+import { alphanumeric, emptyString, shuffle } from "./util";
 
 export class ConfidentialClausDelegator extends Delegator {
   private ddbClient: DynamoDBClientFacade;
@@ -24,11 +24,11 @@ export class ConfidentialClausDelegator extends Delegator {
       }
 
       const invalidMessages: string[] = [];
-      if(this.emptyString(body["username"]) || /\s/.test(body["username"])) {
+      if(emptyString(body["username"]) || /\s/.test(body["username"])) {
         invalidMessages.push("username is empty or contains spaces");
       }
       ["firstName", "lastName"].forEach((prop) => {
-        if(this.emptyString(body[prop])) {
+        if(emptyString(body[prop])) {
           invalidMessages.push(`${prop} is empty`);
         }
       });
@@ -36,7 +36,7 @@ export class ConfidentialClausDelegator extends Delegator {
         invalidMessages.push("address is not an object");
       } else {
         ["line1", "city", "usState", "zip"].forEach((prop) => {
-          if(!(prop in body["address"]) || this.emptyString(body["address"][prop])) {
+          if(!(prop in body["address"]) || emptyString(body["address"][prop])) {
             invalidMessages.push(`${prop} is empty`);
           }
         });
@@ -108,7 +108,7 @@ export class ConfidentialClausDelegator extends Delegator {
       } catch(e) {
         throw new BadRequestError("Request body is not valid JSON");
       }
-      if (this.emptyString(body.message)) throw new BadRequestError("message must not be empty");
+      if (emptyString(body.message)) throw new BadRequestError("message must not be empty");
 
       const requestedUser = this.getRequestedUser(event);
       if(Authorizer.authorizeNotUser(event.authenticatedUser, requestedUser, await this.userList())) {
@@ -154,7 +154,7 @@ export class ConfidentialClausDelegator extends Delegator {
       } catch(e) {
         throw new BadRequestError("Request body is not valid JSON");
       }
-      if (this.emptyString(body.assignedUser)) throw new BadRequestError("message must not be empty");
+      if (emptyString(body.assignedUser)) throw new BadRequestError("message must not be empty");
 
       if(Authorizer.authorizeAdmin(event.authenticatedUser, await this.userList())) {
         await this.ddbClient.assignUser(event.authenticatedUser, body.assignedUser);
@@ -166,14 +166,6 @@ export class ConfidentialClausDelegator extends Delegator {
 
   private async userList(): Promise<string[]> {
     return (await this.ddbClient.getAllUsers()).map((user) => user.username);
-  }
-
-  private emptyString(str: any | undefined): boolean {
-    return (
-      str === undefined
-      || typeof str !== "string"
-      || str === ""
-    );
   }
 
   private getRequestedUser(event: RequestEvent): string {

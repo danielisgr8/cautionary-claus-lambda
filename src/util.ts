@@ -24,17 +24,25 @@ export const alphanumeric = (length: number) => {
 
 const randInt = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min)) + min;
-}
+};
 
 const swap = (arr: any[], i: number, j: number) => {
   const tmp = arr[i];
   arr[i] = arr[j];
   arr[j] = tmp;
-}
+};
 
 export const shuffle = (arr: any[]) => {
   for(let i = arr.length - 1; i >= 1; i--) {
     let j = randInt(0, i + 1);
     swap(arr, i, j);
   }
-}
+};
+
+export const emptyString = (str: any | undefined) => {
+  return (
+    str === undefined
+    || typeof str !== "string"
+    || str === ""
+  );
+};

@@ -1,5 +1,6 @@
 import { APIGatewayProxyEventV2 } from "aws-lambda";
 import { AuthenticationError, NoActivityError } from "./errors";
+import { emptyString } from "./util";
 
 export interface RequestEvent extends APIGatewayProxyEventV2 {
   authenticatedUser: string,
@@ -32,6 +33,7 @@ export class Delegator {
     } else {
       try {
         authenticatedUser = event.headers["authorization"].split(" ")[1];
+        if(emptyString(authenticatedUser)) throw new AuthenticationError("Authorization header is malformed");
       } catch(e) {
         throw new AuthenticationError("Authorization header is malformed");
       }
